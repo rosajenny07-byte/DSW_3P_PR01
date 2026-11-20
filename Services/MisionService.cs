@@ -56,6 +56,11 @@ namespace DSW_3P_PR01.Services
 
         private void ValidarMision(Mision mision)
         {
+            if (mision == null)
+            {
+                throw new ArgumentNullException(nameof(mision), "La misión no puede ser nula.");
+            }
+
             if (string.IsNullOrWhiteSpace(mision.Nombre))
             {
                 throw new ArgumentException(

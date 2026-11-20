@@ -1,0 +1,9 @@
+[
+  {
+    "Id": 1,
+    "Nombre": "bbb",
+    "Dificultad": "F\u00E1cil",
+    "RecompensaXP": 100,
+    "Completada": false
+  }
+]
