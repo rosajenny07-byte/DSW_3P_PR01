@@ -1,4 +1,3 @@
-
 using System.Text.Json;
 using DSW_3P_PR01.Models;
 
@@ -10,8 +9,11 @@ namespace DSW_3P_PR01.Repositories
 
         private readonly JsonSerializerOptions _opciones = new()
         {
-            WriteIndented = true
+            WriteIndented = true,
+            PropertyNameCaseInsensitive = true
         };
+
+        private static readonly object _lock = new();
 
         public MisionJsonRepository(IWebHostEnvironment environment)
         {
@@ -24,28 +26,57 @@ namespace DSW_3P_PR01.Repositories
 
             _rutaArchivo = Path.Combine(carpeta, "misiones.json");
 
-            if (!File.Exists(_rutaArchivo))
+            lock (_lock)
             {
-                File.WriteAllText(_rutaArchivo, "[]");
+                if (!File.Exists(_rutaArchivo) || new FileInfo(_rutaArchivo).Length == 0)
+                {
+                    File.WriteAllText(_rutaArchivo, "[]");
+                }
             }
         }
 
         private List<Mision> LeerMisiones()
         {
-            string json = File.ReadAllText(_rutaArchivo);
+            lock (_lock)
+            {
+                if (!File.Exists(_rutaArchivo))
+                {
+                    File.WriteAllText(_rutaArchivo, "[]");
+                    return new List<Mision>();
+                }
 
-            return JsonSerializer.Deserialize<List<Mision>>(json)
-                   ?? new List<Mision>();
+                string json = File.ReadAllText(_rutaArchivo);
+
+                if (string.IsNullOrWhiteSpace(json))
+                {
+                    File.WriteAllText(_rutaArchivo, "[]");
+                    return new List<Mision>();
+                }
+
+                try
+                {
+                    return JsonSerializer.Deserialize<List<Mision>>(json, _opciones)
+                           ?? new List<Mision>();
+                }
+                catch (JsonException)
+                {
+                    File.WriteAllText(_rutaArchivo, "[]");
+                    return new List<Mision>();
+                }
+            }
         }
 
         private void GuardarMisiones(List<Mision> misiones)
         {
-            string json = JsonSerializer.Serialize(
-                misiones,
-                _opciones
-            );
+            lock (_lock)
+            {
+                string json = JsonSerializer.Serialize(
+                    misiones,
+                    _opciones
+                );
 
-            File.WriteAllText(_rutaArchivo, json);
+                File.WriteAllText(_rutaArchivo, json);
+            }
         }
 
         public List<Mision> ObtenerTodas()
@@ -61,57 +92,66 @@ namespace DSW_3P_PR01.Repositories
 
         public Mision Crear(Mision mision)
         {
-            List<Mision> misiones = LeerMisiones();
+            lock (_lock)
+            {
+                List<Mision> misiones = LeerMisiones();
 
-            mision.Id = misiones.Count == 0
-                ? 1
-                : misiones.Max(m => m.Id) + 1;
+                mision.Id = misiones.Count == 0
+                    ? 1
+                    : misiones.Max(m => m.Id) + 1;
 
-            misiones.Add(mision);
+                misiones.Add(mision);
 
-            GuardarMisiones(misiones);
+                GuardarMisiones(misiones);
 
-            return mision;
+                return mision;
+            }
         }
 
         public bool Actualizar(Mision mision)
         {
-            List<Mision> misiones = LeerMisiones();
-
-            int indice = misiones.FindIndex(
-                m => m.Id == mision.Id
-            );
-
-            if (indice == -1)
+            lock (_lock)
             {
-                return false;
+                List<Mision> misiones = LeerMisiones();
+
+                int indice = misiones.FindIndex(
+                    m => m.Id == mision.Id
+                );
+
+                if (indice == -1)
+                {
+                    return false;
+                }
+
+                misiones[indice] = mision;
+
+                GuardarMisiones(misiones);
+
+                return true;
             }
-
-            misiones[indice] = mision;
-
-            GuardarMisiones(misiones);
-
-            return true;
         }
 
         public bool Eliminar(int id)
         {
-            List<Mision> misiones = LeerMisiones();
-
-            Mision? mision = misiones.FirstOrDefault(
-                m => m.Id == id
-            );
-
-            if (mision == null)
+            lock (_lock)
             {
-                return false;
+                List<Mision> misiones = LeerMisiones();
+
+                Mision? mision = misiones.FirstOrDefault(
+                    m => m.Id == id
+                );
+
+                if (mision == null)
+                {
+                    return false;
+                }
+
+                misiones.Remove(mision);
+
+                GuardarMisiones(misiones);
+
+                return true;
             }
-
-            misiones.Remove(mision);
-
-            GuardarMisiones(misiones);
-
-            return true;
         }
     }
 }
