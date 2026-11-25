@@ -11,16 +11,22 @@ builder.Services.AddOpenApi();
 builder.Services.AddControllers();
 
 // Repositorio y Servicio de Misiones (cambiar a MisionSQLRepository cuando se use SQL Server)
-builder.Services.AddScoped<IMisionRepository, MisionJsonRepository>();
+//builder.Services.AddScoped<IMisionRepository, MisionJsonRepository>();
+builder.Services.AddScoped<IMisionRepository, MisionPostgreSqlRepository>();
 builder.Services.AddScoped<IMisionService, MisionService>();
 
 // Configuración de SQL Server
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(
-        builder.Configuration.GetConnectionString("SqlServerConnection")
+// builder.Services.AddDbContext<AppDbContext>(options =>
+//     options.UseSqlServer(
+//         builder.Configuration.GetConnectionString("SqlServerConnection")
+//     )
+// );
+// Configuración de PostgreSQL
+builder.Services.AddDbContext<PostgreSqlDbDbContext>(options =>
+    options.UseNpgsql(
+        builder.Configuration.GetConnectionString("PostgreSqlConnection")
     )
 );
-
 // Configuración de JWT
 var jwt = builder.Configuration.GetSection("Jwt");
 var keyString = jwt["Key"] ?? "GZTSi330RvsuRmBOE+A0pZhkdyCkPMss2tshMMdvUYE=";
@@ -84,6 +90,7 @@ if (app.Environment.IsDevelopment())
 // 2. Authentication
 // 3. Authorization
 // 4. MapControllers
+// dotnet add package Npgsql.EntityFrameworkCore.PostgreSQL --version 10.0.*
 app.UseCors("QuestLogFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
